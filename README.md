@@ -1,1 +1,2 @@
 Bonjour
+Erreur 404
