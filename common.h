@@ -20,6 +20,7 @@ typedef struct {
     int count;              // Nombre actuel de processus
     bool running;           // Pour contrôler la boucle principale
     int selected_idx;       // Index du processus sélectionné dans l'UI
+    char remote_config_path[256];  // Chemin vers fichier de config distant
 } app_state_t;
 
 #endif 
