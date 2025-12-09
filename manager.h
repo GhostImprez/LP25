@@ -22,6 +22,7 @@ typedef struct {
     process_state_e state;
     double cpu_usage;       // %
     double mem_usage;       // %
+    double time_sec;    // temps total CPU en secondes
 } process_t;
 
 
