@@ -1,29 +1,29 @@
-// Nom de l'executable
+# Nom de l'executable
 NAME = progamme
 
-// Dossiers
+# Dossiers
 SRC_DIR = src
 INC_DIR = include
 
-// Fichiers sources
+# Fichiers sources
 SRC = $(wildcard $(SRC_DIR)/*.c)
 
-// Fichiers objets
+# Fichiers objets
 OBJ = $(SRC:.c=.o)
 
 
-// Options compilateur
+# Options compilateur
 CC = gcc
 CFLAGS = -Wall -Wextra -I$(INC_DIR)
 
-// bibliothèque ncurses
+# bibliothèque ncurses
 LDFLAGS = -lncurses
 
 all: $(NAME
 $(NAME)): $(OBJ)
 $(CC) $(OBJ) -o $(NAME) $(LDFLAGS)
 
-// compiler les fichiers sources en fichiers objets
+# compiler les fichiers sources en fichiers objets
 %.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
