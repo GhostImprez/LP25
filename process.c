@@ -7,7 +7,7 @@
 #include <ctype.h>
 #include <pwd.h>
 #include <stdbool.h> 
-#include "manager.h"
+#include "process.h"
 
 /*
 typedef struct {
