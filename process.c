@@ -109,9 +109,115 @@ typedef struct {
 
 */
 
+// Fonction pour lire le total des ticks CPU de la machine depuis /proc/stat
 
+long read_total_cpu_ticks() {
+    FILE *f = fopen("/proc/stat", "r");
+    if (!f) return 0;
+
+    char buffer[256];
+    fgets(buffer, sizeof(buffer), f); // lit la ligne "cpu  ..."
+
+    fclose(f);
+
+    // on lit tous les champs sauf "cpu"
+    long user, nicev, system, idle, iowait, irq, softirq, steal;
+    sscanf(buffer, "cpu %ld %ld %ld %ld %ld %ld %ld %ld",
+           &user, &nicev, &system, &idle, &iowait, &irq, &softirq, &steal);
+
+    return user + nicev + system + idle + iowait + irq + softirq + steal;
+}
+
+// Lire la mémoire totale (kB) depuis /proc/meminfo
+long read_total_memory_kb() {
+    FILE *f = fopen("/proc/meminfo", "r");
+    if (!f) return 0;
+
+    char line[256];
+    long mem_kb = 0;
+    while (fgets(line, sizeof(line), f)) {
+        if (sscanf(line, "MemTotal:%ld kB", &mem_kb) == 1) {
+            break;
+        }
+    }
+    fclose(f);
+    return mem_kb;
+}
+
+// Fonction pour lire les ticks CPU d'un processus depuis /proc/PID/stat
+
+int read_process_ticks(pid_t pid, long *result) {
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/%d/stat", pid);
+    FILE *f = fopen(path, "r");
+    if (!f) return 0;
+
+    int pid_tmp;
+    char comm[256];
+    char state;
+    long utime, stime;
+
+    // sauter les champs 1 à 13
+    fscanf(f, "%d %s %c", &pid_tmp, comm, &state);
+    // après avoir lu pid, comm et state, il faut ignorer les champs 4..13 (10 champs)
+    for (int i = 0; i < 10; i++) {
+        fscanf(f, "%*s");
+    }
+
+    // champ 14 = utime, champ 15 = stime
+    fscanf(f, "%ld %ld", &utime, &stime);
+
+    fclose(f);
+
+    *result = utime + stime;
+    return 1;
+}
+
+//Fonction pour calculer l'utilisation CPU d'un processus en %
+
+void compute_cpu_usage(process_t *p) {
+    long proc_ticks;
+    if (!read_process_ticks(p->pid, &proc_ticks))
+        return; // process disparu
+
+    long sys_ticks = read_total_cpu_ticks();
+
+    // Première mesure → on ne peut PAS calculer un delta
+    if (!p->has_prev) {
+        p->prev_proc_ticks = proc_ticks;
+        p->prev_sys_ticks = sys_ticks;
+        p->has_prev = 1;
+        p->cpu_usage = 0.0;
+        return;
+    }
+
+    long delta_proc = proc_ticks - p->prev_proc_ticks;
+    long delta_sys  = sys_ticks  - p->prev_sys_ticks;
+
+    if (delta_sys > 0)
+        p->cpu_usage = 100.0 * (double)delta_proc / (double)delta_sys;
+    else
+        p->cpu_usage = 0.0;
+
+    // mettre à jour les anciennes valeurs
+    p->prev_proc_ticks = proc_ticks;
+    p->prev_sys_ticks = sys_ticks;
+}
+
+process_t *find_process_by_pid(process_t *list, int count, pid_t pid) {
+    for (int i = 0; i < count; i++) {
+        if (list[i].pid == pid)
+            return &list[i];
+    }
+    return NULL;
+}
 
 void update_local_processes(machine_t *m){
+
+    // Avant la boucle sur /proc, on sauvegarde l'ancienne liste :
+    process_t *old_list = m->processes.list;
+    int old_count = m->processes.count;
+
     if (m->processes.count == 0) {
         m->processes.capacity = 64; // capacité initiale arbitraire
         m->processes.list = malloc(sizeof(process_t) * m->processes.capacity);
@@ -147,13 +253,17 @@ void update_local_processes(machine_t *m){
         FILE *f_user = fopen(path_usr, "r");
         if (!f_user) continue;  // processus peut avoir disparu
 
-        //on lit le Uid dans le fichier status
+        //on lit le Uid et VmRSS dans le fichier status
         int uid = -1;
+        long rss_kb = -1;
         char line_usr[256];
         while (fgets(line_usr, sizeof(line_usr), f_user)) {
             if (strncmp(line_usr, "Uid:", 4) == 0) {
                 sscanf(line_usr, "Uid:\t%d", &uid);  // récupérer le premier UID
-                break;
+            }
+            else if (strncmp(line_usr, "VmRSS:", 6) == 0) {
+                // format: VmRSS:\t   1234 kB
+                sscanf(line_usr, "VmRSS:%ld kB", &rss_kb);
             }
         }
         fclose(f_user);
@@ -202,8 +312,30 @@ void update_local_processes(machine_t *m){
         
 
         //Lecture de CPU%-----------------------------------------
+        // récupération des anciennes valeurs CPU ——
+        process_t *old = find_process_by_pid(old_list, old_count, p->pid);
 
-        //Lecture de MEM%-----------------------------------------
+        if (old) {
+            p->prev_proc_ticks = old->prev_proc_ticks;
+            p->prev_sys_ticks  = old->prev_sys_ticks;
+            p->has_prev        = old->has_prev;
+            p->cpu_usage       = old->cpu_usage;
+        } else {
+            p->prev_proc_ticks = 0;
+            p->prev_sys_ticks  = 0;
+            p->has_prev        = 0;
+            p->cpu_usage       = 0.0;
+        }
+
+        compute_cpu_usage(p);
+
+        // Calcul de mem_usage en pourcentage (utilise VmRSS en kB)
+        long mem_total_kb = read_total_memory_kb();
+        if (mem_total_kb > 0 && rss_kb > 0) {
+            p->mem_usage = 100.0 * (double)rss_kb / (double)mem_total_kb;
+        } else {
+            p->mem_usage = 0.0;
+        }
 
         //Lecture de TIME+
         char stat_path[64];
@@ -259,7 +391,7 @@ void update_local_processes(machine_t *m){
          n_process++;
 
     }
-
+    free(old_list);
     closedir(proc);
 
     m->processes.count = n_process;  // nombre réel de processus
@@ -278,17 +410,35 @@ int main() {
 
     update_local_processes(m);
 
+
+    /*
+    Pour tester la lecture des processus locaux:
+    mettre en commentaire le update_local_processes(m); ci-dessus
+    et décommenter le code ci-dessous.
+    */
+
+    /*
+    update_local_processes(m);
+    usleep(500000);   // 500 ms
+    update_local_processes(m);
+
+    // --- Affichage ---
     for (int i = 0; i < m->processes.count; i++) {
     process_t *p = &m->processes.list[i]; // pointeur vers le iᵉ processus
 
-    // Exemple d'affichage
+    // affichage test
     printf("PID: %d\n", p->pid);
     printf("User: %s\n", p->user);
     printf("Command: %s\n", p->command);
     printf("State: %c\n", p->state);
     printf("TIME: %.2f sec\n", p->time_sec);
+    printf("CPU%%: %.2f %%\n", p->cpu_usage);
+    printf("MEM%%: %.2f %%\n", p->mem_usage);
     printf("---\n");
-}
+    }
+    */
+
+    
 
     return 0;
     

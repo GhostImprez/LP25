@@ -28,9 +28,17 @@ typedef struct {
     char user[32];
     char command[256];
     process_state_e state;
-    double cpu_usage;       // %
-    double mem_usage;       // %
     double time_sec;    // temps total CPU en secondes
+
+    //partie %cpu----------------
+    double cpu_usage;       // %
+    long prev_proc_ticks;   // (utime+stime) précédente valeur
+    long prev_sys_ticks;    // total CPU machine précédent
+    int has_prev;           // 0 = première mesure, 1 = delta possible
+
+    //partie %mem----------------
+    double mem_usage;       // %
+    
 } process_t;
 
 
