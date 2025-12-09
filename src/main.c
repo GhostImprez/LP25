@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
         }
 
         // 4. TIMING
-        if (mgr.running) usleep(100000); // 100ms
+        if (mgr.running) sleep(0.1); // 100 ms
     }
 
     if (!mgr.dry_run) ui_end();

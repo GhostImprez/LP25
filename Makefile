@@ -1,5 +1,5 @@
 # Nom de l'executable
-NAME = progamme
+NAME = programme
 
 # Dossiers
 SRC_DIR = src
@@ -19,12 +19,13 @@ CFLAGS = -Wall -Wextra -I$(INC_DIR)
 # bibliothèque ncurses
 LDFLAGS = -lncurses
 
-all: $(NAME
-$(NAME)): $(OBJ)
-$(CC) $(OBJ) -o $(NAME) $(LDFLAGS)
+all: $(NAME)
+
+$(NAME): $(OBJ)
+	$(CC) $(OBJ) -o $(NAME) $(LDFLAGS)
 
 # compiler les fichiers sources en fichiers objets
-%.o: $(SRC_DIR)/%.c
+%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
