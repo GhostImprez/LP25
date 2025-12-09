@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <getopt.h>
+#include <time.h>
 
 // Inclusion des modules réels
 #include "manager.h"
@@ -29,74 +30,116 @@ int main(int argc, char *argv[])
     manager_t mgr;
     manager_init(&mgr);
     
-    // Contexte UI
+    // Contexte UI (pour savoir quelle ligne est sélectionnée, scroll, onglet...)
     ui_ctx_t ui_ctx;
-    // Important : initialiser à 0
-    memset(&ui_ctx, 0, sizeof(ui_ctx_t));
+    memset(&ui_ctx, 0, sizeof(ui_ctx_t)); 
 
-    // Parsing
+    // --- Parsing ---
     int opt, idx;
     while ((opt = getopt_long(argc, argv, "hc:l:a", options_longues, &idx)) != -1) {
         switch (opt) {
             case 0: 
-                if (strcmp(options_longues[idx].name, "dry-run") == 0) mgr.dry_run = true; 
+                if (strcmp(options_longues[idx].name, "dry-run") == 0) mgr.dry_run = true;
                 break;
-            case 'h': 
-                printf("Usage: %s [OPTIONS]\n", argv[0]); 
-                manager_clean(&mgr); 
+            case 'h':
+                printf("Usage: %s [OPTIONS]\n", argv[0]);
+                manager_clean(&mgr);
                 return 0;
-            case 'a': mgr.show_all = true; break;
-            case 'c': printf("[INFO] Config non implémentée pour MVP local\n"); break;
+            case 'c':
+                printf("[INFO] Config non chargée pour le MVP Local.\n");
+                break;
+            case 'a':
+                mgr.show_all = true;
+                break;
         }
     }
 
-    // Ajout machine locale par défaut
+    // --- Initialisation ---
     if (mgr.machine_count == 0) {
-        manager_add_machine(&mgr, "Systeme local", "127.0.0.1", 0, CONN_LOCAL);
+        manager_add_machine(&mgr, "Systeme Local", "127.0.0.1", 0, CONN_LOCAL);
     }
 
-    // Init UI
     if (!mgr.dry_run) {
         ui_init(&ui_ctx);
     }
 
-    // Boucle Principale
+    // --- Boucle Principale ---
     while (mgr.running) {
-        // 1. UPDATE (Module Process)
+        
+        // A. Mise à jour des données 
         for(int i = 0; i < mgr.machine_count; i++) {
             if (mgr.machines[i].type == CONN_LOCAL) {
-                // Fonction de P1 (process.c)
                 update_local_processes(&mgr.machines[i]);
             }
         }
 
-        // 2. DRAW (Module UI)
+        // B. Affichage 
         if (!mgr.dry_run) {
-            // Fonction de P3 (ui.c) adaptée
             ui_draw(&ui_ctx, mgr.machines, mgr.machine_count);
         } else {
-            // Mode texte pour debug
-            printf("[Dry-Run] Machine 0: %d processus\n", mgr.machines[0].processes.count);
-            mgr.running = false; 
+            printf("[Dry-Run] Machine '%s' : %d processus actifs.\n", 
+                   mgr.machines[0].name, mgr.machines[0].processes.count);
+            mgr.running = false; // Arrêt immédiat en mode test
         }
 
-        // 3. INPUT (Module UI)
+        // C. Gestion des Entrées Clavier
         if (!mgr.dry_run) {
-            // On passe le nombre de procs de la machine ACTIVE
             int current_count = mgr.machines[ui_ctx.tab].processes.count;
             
+            // Lecture clavier
             int key = ui_input(&ui_ctx, mgr.machine_count, current_count);
             
-            if (key == 'q') mgr.running = false;
+            // --- Logique des touches ---
+            if (key == 'q') {
+                mgr.running = false;
+            }
             
-            // TODO: Ajouter ici les appels à interaction_processus.c
-            // Si key == KEY_F(5) -> pause_process(...)
+            // Touche F1 : Aide
+            else if (key == KEY_F(1)) {
+                aide_process(); 
+            }
+
+            // Touches d'action (F5 à F8)
+            else if (key >= KEY_F(5) && key <= KEY_F(8)) {
+                
+                // 1. On identifie la machine active (Onglet)
+                machine_t *curr_machine = &mgr.machines[ui_ctx.tab];
+
+                // 2. On vérifie qu'on ne tape pas dans le vide (sélection valide)
+                if (curr_machine->processes.count > 0 && ui_ctx.sel < curr_machine->processes.count) {
+                    
+                    // 3. On récupère le PID de la ligne surlignée
+                    pid_t target_pid = curr_machine->processes.list[ui_ctx.sel].pid;
+
+                    // 4. On appelle la bonne fonction d'interaction
+                    switch (key) {
+                        case KEY_F(5): // Pause
+                            pause_process(target_pid);
+                            break;
+                        case KEY_F(6): // Stop (SIGTERM)
+                            arret_process(target_pid);
+                            break;
+                        case KEY_F(7): // Kill (SIGKILL)
+                            tuer_process(target_pid);
+                            break;
+                        case KEY_F(8): // Redémarrer / Reprendre (SIGCONT)
+                            redemarrer_process(target_pid);
+                            break;
+                    }
+                }
+            }
         }
 
-        // 4. TIMING
-        if (mgr.running) sleep(0.1); // 100 ms
+        // D. Temporisation (Remplacement moderne de usleep)
+        if (mgr.running) {
+            struct timespec ts;
+            ts.tv_sec = 0;   
+            ts.tv_nsec = 100000000;     // 100 000 000 ns = 100ms 
+            nanosleep(&ts, NULL);
+        }
     }
 
+    // --- Nettoyage ---
     if (!mgr.dry_run) ui_end();
     manager_clean(&mgr);
 
