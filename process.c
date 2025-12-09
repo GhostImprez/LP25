@@ -185,6 +185,13 @@ void update_local_processes(machine_t *m){
                     case 'S': p->state = STATE_SLEEPING; break;
                     case 'Z': p->state = STATE_ZOMBIE; break;
                     case 'T': p->state = STATE_STOPPED; break;
+
+                    //ajout d'etats:
+                    case 'I': p->state = STATE_IDLE; break;
+                    case 'K': p->state = STATE_WAKEKILL; break;
+                    case 'P': p->state = STATE_PARKED; break;
+                    case 'X': p->state = STATE_DEAD; break;
+                    case 'W': p->state = STATE_WAKING; break;
                     default:  p->state = STATE_UNKNOWN; break;
                 }
                 break;  // on a trouvé l'état, plus besoin de continuer

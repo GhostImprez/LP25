@@ -11,6 +11,14 @@ typedef enum {
     STATE_SLEEPING = 'S',
     STATE_ZOMBIE = 'Z',
     STATE_STOPPED = 'T',
+
+    //ajout d'etats
+    STATE_IDLE = 'I',
+    STATE_WAKING = 'W',
+    STATE_WAKEKILL = 'K',
+    STATE_PARKED = 'P',
+    STATE_DEAD = 'X',
+
     STATE_UNKNOWN = '?'
 } process_state_e;
 
