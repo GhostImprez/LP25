@@ -12,7 +12,7 @@ void ui_init(ui_ctx_t *c) {
     curs_set(0);         
     start_color();
 
-    // Définition des paires de couleurs
+    // Définition de couleurs
     init_pair(1, COLOR_WHITE, COLOR_BLACK); // Texte standard
     init_pair(2, COLOR_BLACK, COLOR_CYAN);  // En-têtes 
     init_pair(3, COLOR_BLACK, COLOR_GREEN); // Sélection 
