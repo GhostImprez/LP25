@@ -98,7 +98,13 @@ int main(int argc, char *argv[])
             else if (key == KEY_F(1)) {
                 aide_process(); 
             }
-
+            
+            // Touche F4
+            // TODO : implémenter la recherche par pid mais avec des fonctions ncurses
+            else if (key == KEY_F(4)) {
+                // Pour l'instant, on affiche un message dans le terminal
+                printf("[INFO] Fonction de recherche non implémentée\n");
+            }
             // Touches d'action (F5 à F8)
             else if (key >= KEY_F(5) && key <= KEY_F(8)) {
                 

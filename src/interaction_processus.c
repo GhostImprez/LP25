@@ -14,7 +14,7 @@ void aide_process() {
 
 // F4: Rechercher un processus par son PID
 process_t* recherche_process(process_t *list, int count, pid_t pid) {
-    if (!list || count <= 0) {
+        if (!list || count <= 0) {
         return NULL;
     }
     
