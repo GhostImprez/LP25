@@ -272,9 +272,9 @@ void update_local_processes(machine_t *m) {
 
     closedir(proc);
 
-    // 4. Nettoyage et Finalisation
+    // 4. Nettoyage et libération
     if (old_list) {
-        free(old_list); // On libère l'ancienne liste
+        free(old_list); 
     }
     
     m->processes.count = n_process;

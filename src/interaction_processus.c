@@ -62,4 +62,3 @@ int redemarrer_process(pid_t pid) {
     return 0;
 }
 
-// SUPPRESSION DU MAIN() QUI ETAIT ICI

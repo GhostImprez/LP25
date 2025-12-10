@@ -50,7 +50,7 @@ void ui_draw(ui_ctx_t *c, machine_t *m, int n) {
     for(int i = strlen(current_machine->name) + 10; i < c->w; i++) addch(' '); 
     attroff(COLOR_PAIR(2));
 
-    mvprintw(2, 1, "PID   USER       CPU%%   MEM%%   COMMAND");
+    mvprintw(2, 1, "PID   USER       STATE CPU%%  MEM%%  COMMAND");
 
     // Liste des processus 
     // On affiche autant de lignes que l'écran le permet
@@ -63,12 +63,13 @@ void ui_draw(ui_ctx_t *c, machine_t *m, int n) {
         // Pointeur vers le processus spécifique
         process_t *p = &current_machine->processes.list[idx];
 
-        // Si c'est la ligne sélectionnée, on change la couleur 
+        // Changement de couleur, si sélectionné
         if(idx == c->sel) attron(COLOR_PAIR(3));
         
-        mvprintw(3 + i, 1, "%-5d %-10s %-5.1f  %-5.1f  %s", 
+        mvprintw(3 + i, 1, "%-5d %-10s %c     %-5.1f %-5.1f %s", 
                  p->pid, 
                  p->user, 
+                 p->state,
                  p->cpu_usage, 
                  p->mem_usage, 
                  p->command);
