@@ -2,13 +2,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+
 void ui_init(ui_ctx_t *c) { 
     // Démarrage standard de ncurses
     initscr(); 
     cbreak(); 
     noecho(); 
     keypad(stdscr, TRUE); 
-    curs_set(0);          
+    curs_set(0);         
     start_color();
 
     // Définition des paires de couleurs
