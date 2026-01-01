@@ -28,13 +28,13 @@ void opt_remote_config(){
 
 //option -t ou --connexion-type
 void opt_connexion_type(){
-    printf("SOON\n");
+    printf("LE TYPE DE CONNEXION A UTILISER EST SSH\n");
     //à implémenter
 }
 
 //option -P ou --port
 void opt_port(){
-    printf("SOON\n");
+    printf("LE PORT UTILISÉ EST 22\n");
     //à implémenter
 }
 
