@@ -35,7 +35,7 @@ void manager_clean(manager_t *m) {
     }
 }
 
-int manager_add_machine(manager_t *m, const char *name, const char *host, int port, conn_type_e type) {
+int manager_add_machine(manager_t *m, const char *name, const char *host, int port, conn_type_e type, char *user, char *password) {
     // Si le tableau est plein on double sa taille
     if (m->machine_count >= m->machine_capacity) {
         m->machine_capacity *= 2;
@@ -48,11 +48,13 @@ int manager_add_machine(manager_t *m, const char *name, const char *host, int po
     memset(new_m, 0, sizeof(machine_t));
     
     // Copie des informations (strdup alloue de la mémoire)
-    new_m->name = strdup(name ? name : "Inconnu");
-    new_m->host = host ? strdup(host) : NULL;
-    new_m->port = port;
-    new_m->type = type;
+    new_m->name = strdup(name ? name : "Inconnu"); //nom
+    new_m->host = host ? strdup(host) : NULL; //ip
+    new_m->port = port; //port
+    new_m->type = type; //ssh
     new_m->connected = true; // Par défaut connecté (pour le local)
+    new_m->user = user ? strdup(user) : NULL;
+    new_m->password = password ? strdup(password) : NULL;
 
     m->machine_count++;
     return 0;
