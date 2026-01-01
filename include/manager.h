@@ -90,6 +90,6 @@ typedef struct {
 // --- Prototypes ---
 void manager_init(manager_t *m);
 void manager_clean(manager_t *m);
-int manager_add_machine(manager_t *m, const char *name, const char *host, int port, conn_type_e type);
+int manager_add_machine(manager_t *m, const char *name, const char *host, int port, conn_type_e type, char *user, char *password);
 
 #endif
