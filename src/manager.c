@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "manager.h"
+//#include "manager.h"
+#include "/home/enzo/Documents/lp25/projet_htop/LP25/include/manager.h"
 
 void manager_init(manager_t *m) {
     if (!m) return;

@@ -7,7 +7,8 @@
 #include <ctype.h>
 #include <pwd.h>
 #include <stdbool.h> 
-#include "process.h"
+//#include "process.h"
+#include "/home/enzo/Documents/lp25/projet_htop/LP25/include/process.h"
 
 // --- Fonctions Utilitaires (Lecture des fichiers système) ---
 
