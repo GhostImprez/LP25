@@ -7,8 +7,8 @@
 #include <ctype.h>
 #include <pwd.h>
 #include <stdbool.h> 
-#include "/home/enzo/Documents/lp25/projet_htop/LP25/include/process.h"
-#include "/home/enzo/Documents/lp25/projet_htop/LP25/include/manager.h"
+#include "process.h"
+#include "manager.h"
 
 /*
 //La fonction suivante lit le fichier .config permettant d'initialiser une machine distante
