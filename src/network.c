@@ -48,6 +48,81 @@ void lecture_fichier_config(const char *chemin, manager_t *mgr) {
 }
 
 /*
+La fonction ci dessous permet de récupérer les informations transmises via l'option --login
+une chaine de caractère est transmise sous la forme :
+username@adresse_serveur
+la fonction parse_login décompose cette chaine et remplit les champs user et host de la machine passée en paramètre
+*/
+
+int parse_login(const char *login_str, int port, machine_t *m) {
+    if (!login_str || !m) {
+        return -1;
+    }
+
+    const char *at_sign = strchr(login_str, '@');
+    if (!at_sign) {
+        return -1;
+    }
+
+    size_t user_len = at_sign - login_str;
+    m->user = malloc(user_len + 1);
+    if (!m->user) {
+        return -1;
+    }
+    strncpy(m->user, login_str, user_len);
+    m->user[user_len] = '\0';
+
+    m->host = strdup(at_sign + 1);
+    if (!m->host) {
+        free(m->user);
+        return -1;
+    }
+
+    //si port non spécifié, on met 22 par défaut
+    if (port <= 0) {
+        m->port = 22;
+    } else {
+        m->port = port;
+    }
+
+    return 0;
+}
+
+/*
+La fonction ci dessous permet de récupérer les informations transmises via les option --username et --remote-server
+2 chaines de caractères sont transmises sous la forme :
+username
+adresse_serveur
+la fonction récupère les chaines de caractères et remplit les champs user, host et port de la machine passée en paramètre
+*/
+int parse_username_host(const char *username_str, const char *host_str, int port, machine_t *m) {
+    if (!username_str || !host_str || !m) {
+        return -1;
+    }
+
+    m->user = strdup(username_str);
+    if (!m->user) {
+        return -1;
+    }
+    //si port non spécifié, on met 22 par défaut
+    if (port <= 0) {
+        m->port = 22;
+    } else {
+        m->port = port;
+    }
+
+    m->host = strdup(host_str);
+    if (!m->host) {
+        free(m->user);
+        return -1;
+    }
+
+    return 0;
+}
+
+
+
+/*
 La fonction ci dessous permet d'actualiser les processus d'une machine distance via ssh 
 en executant la commande 'ps aux' et en enregistrant les informations dans la structure machine_t
 */
@@ -141,6 +216,7 @@ int update_remote_processes(machine_t *m) {
 }
 
 int main(){
+    /*
     manager_t mgr;
     manager_init(&mgr);
 
@@ -167,6 +243,8 @@ int main(){
     }
     
     //LECTURE FICHIER CONFIG
+    */
+    
 
    
     
