@@ -94,6 +94,10 @@ int main(int argc, char *argv[])
     if (all_flag && config_file) {
         lecture_fichier_config(config_file, &mgr);
         for (int i = 0; i < mgr.machine_count; i++) {
+            if (mgr.machines[i].type == CONN_SSH) {
+                // start persistent master (may prompt once)
+                ssh_start_master(&mgr.machines[i]);
+            }
             update_remote_processes(&mgr.machines[i]);
         }
     }
@@ -112,7 +116,8 @@ int main(int argc, char *argv[])
         manager_add_machine(&mgr, "Machine Distante", m.host, m.port, CONN_SSH, m.user, NULL);
         free(m.user);
         free(m.host);
-        
+        // start ssh master for this machine (may prompt once)
+        ssh_start_master(&mgr.machines[0]);
         update_remote_processes(&mgr.machines[0]);
     }
     // CAS 2: --username + --remote-server + (--port)
@@ -130,7 +135,8 @@ int main(int argc, char *argv[])
         manager_add_machine(&mgr, "Machine Distante", m.host, m.port, CONN_SSH, m.user, NULL);
         free(m.user);
         free(m.host);
-        
+        // start ssh master for this machine (may prompt once)
+        ssh_start_master(&mgr.machines[0]);
         update_remote_processes(&mgr.machines[0]);
     }
     // CAS 1: AUCUNE OPTION (machine locale)
@@ -229,6 +235,12 @@ int main(int argc, char *argv[])
 
     // --- Nettoyage ---
     if (!mgr.dry_run) ui_end();
+    // Stop SSH masters
+    for (int i = 0; i < mgr.machine_count; i++) {
+        if (mgr.machines[i].type == CONN_SSH) {
+            ssh_stop_master(&mgr.machines[i]);
+        }
+    }
     manager_clean(&mgr);
 
     return 0;

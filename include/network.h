@@ -6,5 +6,10 @@ int parse_username_host(const char *username_str, const char *host_str, int port
 void lecture_fichier_config(const char *chemin, manager_t *mgr);
 int update_remote_processes(machine_t *m);
 
+// SSH ControlMaster helpers
+int ssh_start_master(const machine_t *m);
+int ssh_master_alive(const machine_t *m);
+int ssh_stop_master(const machine_t *m);
+
 
 #endif

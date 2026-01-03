@@ -9,6 +9,21 @@
 #include <stdbool.h> 
 #include "process.h"
 #include "manager.h"
+#include "network.h"
+
+#include <limits.h>
+
+static void ssh_control_path(const machine_t *mm, char *out, size_t out_sz) {
+    char host_safe[256];
+    strncpy(host_safe, mm->host ? mm->host : "unknown", sizeof(host_safe)-1);
+    host_safe[sizeof(host_safe)-1] = '\0';
+    for (char *p = host_safe; *p; ++p) {
+        if (*p == '/' || *p == ':' || *p == ' ') *p = '_';
+    }
+    snprintf(out, out_sz, "/tmp/lp25_ctrl_%s_%s_%d", mm->user ? mm->user : "u", host_safe, mm->port > 0 ? mm->port : 22);
+}
+
+#include <sys/wait.h>
 
 /*
 //La fonction suivante lit le fichier .config permettant d'initialiser une machine distante
@@ -131,10 +146,26 @@ int update_remote_processes(machine_t *m) {
         return -1;
     }
 
-    // Commande SSH
-    char cmd[512];
+    // Ensure ControlPath exists / master connection handled by helpers
+
+    char control[512];
+    ssh_control_path(m, control, sizeof(control));
+
+    // If master not alive, try to start it (this may prompt for password once)
+    if (!ssh_master_alive(m)) {
+        if (ssh_start_master(m) != 0) {
+            fprintf(stderr, "Warning: could not start SSH master for %s@%s\n", m->user, m->host);
+            m->connected = false;
+            return -1;
+        }
+    }
+
+    // Commande SSH réutilisant le ControlPath
+    // Note: we request columns in the order expected by the parser: user pid stat pcpu pmem etimes cmd
+    char cmd[768];
     snprintf(cmd, sizeof(cmd),
-             "ssh -p %d %s@%s \"ps aux\"",
+             "ssh -o ControlPath=%s -p %d %s@%s \"ps -eo user,pid,stat,pcpu,pmem,etimes,cmd --no-headers\"",
+             control,
              m->port > 0 ? m->port : 22,
              m->user,
              m->host);
@@ -153,9 +184,7 @@ int update_remote_processes(machine_t *m) {
 
     char line[1024];
 
-    // Ignorer l'en-tête
-    fgets(line, sizeof(line), fp);
-
+    // ps was invoked with --no-headers; read all lines
     while (fgets(line, sizeof(line), fp)) {
         process_t p;
         memset(&p, 0, sizeof(process_t));
@@ -166,15 +195,18 @@ int update_remote_processes(machine_t *m) {
          */
 
         char stat[8];
-        double cpu, mem;
+        double cpu = 0.0, mem = 0.0;
+        int etimes = 0;
 
+        // expected: user pid stat pcpu pmem etimes cmd
         int matched = sscanf(line,
-            "%31s %d %lf %lf %*d %*d %*s %7s %*s %*s %255[^\n]",
+            "%31s %d %7s %lf %lf %d %255[^\n]",
             p.user,
             &p.pid,
+            stat,
             &cpu,
             &mem,
-            stat,
+            &etimes,
             p.command
         );
 
@@ -213,5 +245,65 @@ int update_remote_processes(machine_t *m) {
 
     pclose(fp);
     return 0;
+}
+
+
+// --- SSH ControlMaster helpers ---
+int ssh_start_master(const machine_t *m) {
+    if (!m || !m->host || !m->user) return -1;
+    char control[512];
+    // reuse same control path builder
+    char host_safe[256];
+    strncpy(host_safe, m->host ? m->host : "unknown", sizeof(host_safe)-1);
+    host_safe[sizeof(host_safe)-1] = '\0';
+    for (char *p = host_safe; *p; ++p) {
+        if (*p == '/' || *p == ':' || *p == ' ') *p = '_';
+    }
+    snprintf(control, sizeof(control), "/tmp/lp25_ctrl_%s_%s_%d", m->user ? m->user : "u", host_safe, m->port > 0 ? m->port : 22);
+
+    char cmd[1024];
+    snprintf(cmd, sizeof(cmd),
+             "ssh -o ControlMaster=yes -o ControlPath=%s -o ControlPersist=600 -Nf -p %d %s@%s",
+             control, m->port > 0 ? m->port : 22, m->user, m->host);
+
+    int rc = system(cmd);
+    if (rc != 0) {
+        return -1;
+    }
+    return 0;
+}
+
+int ssh_master_alive(const machine_t *m) {
+    if (!m || !m->host || !m->user) return 0;
+    char control[512];
+    char host_safe[256];
+    strncpy(host_safe, m->host ? m->host : "unknown", sizeof(host_safe)-1);
+    host_safe[sizeof(host_safe)-1] = '\0';
+    for (char *p = host_safe; *p; ++p) {
+        if (*p == '/' || *p == ':' || *p == ' ') *p = '_';
+    }
+    snprintf(control, sizeof(control), "/tmp/lp25_ctrl_%s_%s_%d", m->user ? m->user : "u", host_safe, m->port > 0 ? m->port : 22);
+
+    char cmd[1024];
+    snprintf(cmd, sizeof(cmd), "ssh -O check -S %s %s@%s >/dev/null 2>&1", control, m->user, m->host);
+    int rc = system(cmd);
+    return (rc == 0);
+}
+
+int ssh_stop_master(const machine_t *m) {
+    if (!m || !m->host || !m->user) return -1;
+    char control[512];
+    char host_safe[256];
+    strncpy(host_safe, m->host ? m->host : "unknown", sizeof(host_safe)-1);
+    host_safe[sizeof(host_safe)-1] = '\0';
+    for (char *p = host_safe; *p; ++p) {
+        if (*p == '/' || *p == ':' || *p == ' ') *p = '_';
+    }
+    snprintf(control, sizeof(control), "/tmp/lp25_ctrl_%s_%s_%d", m->user ? m->user : "u", host_safe, m->port > 0 ? m->port : 22);
+
+    char cmd[1024];
+    snprintf(cmd, sizeof(cmd), "ssh -O exit -S %s %s@%s >/dev/null 2>&1", control, m->user, m->host);
+    int rc = system(cmd);
+    return (rc == 0) ? 0 : -1;
 }
 
