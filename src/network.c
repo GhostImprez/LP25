@@ -215,38 +215,3 @@ int update_remote_processes(machine_t *m) {
     return 0;
 }
 
-int main(){
-    /*
-    manager_t mgr;
-    manager_init(&mgr);
-
-    
-    lecture_fichier_config(".config.txt", &mgr);
-    machine_t *m = &mgr.machines[0]; // On prend la première machine distante ajoutée
-    printf("nom: %s\n", m->name);
-    printf("host: %s\n", m->host);
-    printf("port: %d\n", m->port);
-    printf("user: %s\n", m->user);
-    printf("password: %s\n", m->password);
-    printf("type: %d\n", m->type);
-    
-    //Mise à jour des processus distants
-    if (update_remote_processes(m) == 0) {
-        printf("Processus sur la machine distante %s:\n", m->name);
-        for (int i = 0; i < m->processes.count; i++) {
-            process_t *p = &m->processes.list[i];
-            printf("PID: %d, User: %s, CPU%%: %.2f%%, MEM%%: %.2f%%, Command: %s\n",
-                   p->pid, p->user, p->cpu_usage, p->mem_usage, p->command);
-        }
-    } else {
-        printf("Échec de la mise à jour des processus distants.\n");
-    }
-    
-    //LECTURE FICHIER CONFIG
-    */
-    
-
-   
-    
-    return 0;
-}

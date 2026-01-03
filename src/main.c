@@ -8,8 +8,9 @@
 
 // Inclusion des modules réels
 #include "manager.h"
-#include "process.h" // Module P1
-#include "ui.h"      // Module P3
+#include "process.h"
+#include "ui.h"
+#include "network.h"
 
 static struct option options_longues[] = {
     {"help", no_argument, 0, 'h'},
@@ -30,35 +31,133 @@ int main(int argc, char *argv[])
     manager_t mgr;
     manager_init(&mgr);
     
-    // Contexte UI (pour savoir quelle ligne est sélectionnée, scroll, onglet...)
+    // Contexte UI
     ui_ctx_t ui_ctx;
     memset(&ui_ctx, 0, sizeof(ui_ctx_t)); 
 
+    // --- Variables pour parser les options ---
+    char *config_file = NULL;
+    char *login_str = NULL;
+    char *username_str = NULL;
+    char *remote_server = NULL;
+    int port = -1;
+    bool all_flag = false;
+
     // --- Parsing ---
     int opt, idx;
-    while ((opt = getopt_long(argc, argv, "hc:l:a", options_longues, &idx)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hc:l:u:s:P:a", options_longues, &idx)) != -1) {
         switch (opt) {
             case 0: 
-                if (strcmp(options_longues[idx].name, "dry-run") == 0) mgr.dry_run = true;
+                if (strcmp(options_longues[idx].name, "dry-run") == 0) 
+                    mgr.dry_run = true;
                 break;
             case 'h':
                 printf("Usage: %s [OPTIONS]\n", argv[0]);
+                printf("Options:\n");
+                printf("  --help, -h              Afficher l'aide\n");
+                printf("  --all, -a               Afficher toutes les machines\n");
+                printf("  --remote-config, -c     Fichier de configuration\n");
+                printf("  --login, -l             Login (user@host)\n");
+                printf("  --username, -u          Nom d'utilisateur\n");
+                printf("  --remote-server, -s     Serveur distant\n");
+                printf("  --port, -P              Port SSH\n");
                 manager_clean(&mgr);
                 return 0;
             case 'c':
-                printf("[INFO] Config non chargée pour le MVP Local.\n");
+                config_file = optarg;
+                break;
+            case 'l':
+                login_str = optarg;
+                break;
+            case 'u':
+                username_str = optarg;
+                break;
+            case 's':
+                remote_server = optarg;
+                break;
+            case 'P':
+                port = atoi(optarg);
                 break;
             case 'a':
-                mgr.show_all = true;
+                all_flag = true;
                 break;
+            default:
+                fprintf(stderr, "Options invalides. Utilisez --help pour l'aide.\n");
+                manager_clean(&mgr);
+                return 1;
         }
     }
 
-    // --- Initialisation ---
-    if (mgr.machine_count == 0) {
-        manager_add_machine(&mgr, "Systeme Local", "127.0.0.1", 0, CONN_LOCAL);
+    // --- Détermination du cas et initialisation des machines ---
+    
+    // CAS 4: --all + --remote-config
+    if (all_flag && config_file) {
+        lecture_fichier_config(config_file, &mgr);
+        for (int i = 0; i < mgr.machine_count; i++) {
+            update_remote_processes(&mgr.machines[i]);
+        }
+    }
+    // CAS 3: --login + (--port)
+    else if (login_str && !username_str && !remote_server) {
+        machine_t m;
+        memset(&m, 0, sizeof(machine_t));
+        m.type = CONN_SSH;
+        
+        if (parse_login(login_str, port, &m) != 0) {
+            fprintf(stderr, "Erreur: format --login invalide (attendu: user@host)\n");
+            manager_clean(&mgr);
+            return 1;
+        }
+        
+        manager_add_machine(&mgr, "Machine Distante", m.host, m.port, CONN_SSH, m.user, NULL);
+        free(m.user);
+        free(m.host);
+        
+        update_remote_processes(&mgr.machines[0]);
+    }
+    // CAS 2: --username + --remote-server + (--port)
+    else if (username_str && remote_server && !login_str) {
+        machine_t m;
+        memset(&m, 0, sizeof(machine_t));
+        m.type = CONN_SSH;
+        
+        if (parse_username_host(username_str, remote_server, port, &m) != 0) {
+            fprintf(stderr, "Erreur: impossible de configurer la machine distante\n");
+            manager_clean(&mgr);
+            return 1;
+        }
+        
+        manager_add_machine(&mgr, "Machine Distante", m.host, m.port, CONN_SSH, m.user, NULL);
+        free(m.user);
+        free(m.host);
+        
+        update_remote_processes(&mgr.machines[0]);
+    }
+    // CAS 1: AUCUNE OPTION (machine locale)
+    else if (!login_str && !username_str && !remote_server && !config_file && !all_flag) {
+        manager_add_machine(&mgr, "Systeme Local", "127.0.0.1", 0, CONN_LOCAL, NULL, NULL);
+        update_local_processes(&mgr.machines[0]);
+    }
+    // OPTIONS INVALIDES
+    else {
+        fprintf(stderr, "Erreur: combinaison d'options invalide.\n");
+        fprintf(stderr, "Utilisations valides:\n");
+        fprintf(stderr, "  1. Aucune option (machine locale)\n");
+        fprintf(stderr, "  2. --username + --remote-server [--port]\n");
+        fprintf(stderr, "  3. --login [--port]\n");
+        fprintf(stderr, "  4. --all + --remote-config\n");
+        manager_clean(&mgr);
+        return 1;
     }
 
+    // Vérifier qu'on a au moins une machine
+    if (mgr.machine_count == 0) {
+        fprintf(stderr, "Erreur: aucune machine configurée\n");
+        manager_clean(&mgr);
+        return 1;
+    }
+
+    // --- Initialisation UI ---
     if (!mgr.dry_run) {
         ui_init(&ui_ctx);
     }
@@ -70,6 +169,8 @@ int main(int argc, char *argv[])
         for(int i = 0; i < mgr.machine_count; i++) {
             if (mgr.machines[i].type == CONN_LOCAL) {
                 update_local_processes(&mgr.machines[i]);
+            } else {
+                update_remote_processes(&mgr.machines[i]);
             }
         }
 
@@ -77,64 +178,51 @@ int main(int argc, char *argv[])
         if (!mgr.dry_run) {
             ui_draw(&ui_ctx, mgr.machines, mgr.machine_count);
         } else {
-            printf("[Dry-Run] Machine '%s' : %d processus actifs.\n", 
-                   mgr.machines[0].name, mgr.machines[0].processes.count);
-            mgr.running = false; // Arrêt immédiat en mode test
+            for(int i = 0; i < mgr.machine_count; i++) {
+                printf("[Dry-Run] Machine '%s' : %d processus actifs.\n", 
+                       mgr.machines[i].name, mgr.machines[i].processes.count);
+            }
+            mgr.running = false;
         }
 
         // C. Gestion des Entrées Clavier
         if (!mgr.dry_run) {
             int current_count = mgr.machines[ui_ctx.tab].processes.count;
-            
-            // Lecture clavier
             int key = ui_input(&ui_ctx, mgr.machine_count, current_count);
             
-            // --- Logique des touches ---
             if (key == 'q') {
                 mgr.running = false;
             }
-            
-            // Touche F1 : Aide
             else if (key == KEY_F(1)) {
                 aide_process(); 
             }
-
-            // Touches d'action (F5 à F8)
             else if (key >= KEY_F(5) && key <= KEY_F(8)) {
-                
-                // 1. On identifie la machine active (Onglet)
                 machine_t *curr_machine = &mgr.machines[ui_ctx.tab];
-
-                // 2. On vérifie qu'on ne tape pas dans le vide (sélection valide)
+                
+                // Vérifier que c'est une machine locale avant d'agir
+                if (curr_machine->type != CONN_LOCAL) {
+                    // Afficher un message d'erreur ou ignorer
+                    continue;
+                }
+                
                 if (curr_machine->processes.count > 0 && ui_ctx.sel < curr_machine->processes.count) {
-                    
-                    // 3. On récupère le PID de la ligne surlignée
                     pid_t target_pid = curr_machine->processes.list[ui_ctx.sel].pid;
-
-                    // 4. On appelle la bonne fonction d'interaction
+                    
                     switch (key) {
-                        case KEY_F(5): // Pause
-                            pause_process(target_pid);
-                            break;
-                        case KEY_F(6): // Stop (SIGTERM)
-                            arret_process(target_pid);
-                            break;
-                        case KEY_F(7): // Kill (SIGKILL)
-                            tuer_process(target_pid);
-                            break;
-                        case KEY_F(8): // Redémarrer / Reprendre (SIGCONT)
-                            redemarrer_process(target_pid);
-                            break;
+                        case KEY_F(5): pause_process(target_pid); break;
+                        case KEY_F(6): arret_process(target_pid); break;
+                        case KEY_F(7): tuer_process(target_pid); break;
+                        case KEY_F(8): redemarrer_process(target_pid); break;
                     }
                 }
             }
         }
 
-        // D. Temporisation (Remplacement moderne de usleep)
+        // D. Temporisation
         if (mgr.running) {
             struct timespec ts;
             ts.tv_sec = 0;   
-            ts.tv_nsec = 100000000;     // 100 000 000 ns = 100ms 
+            ts.tv_nsec = 100000000;
             nanosleep(&ts, NULL);
         }
     }

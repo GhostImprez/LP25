@@ -11,7 +11,6 @@ SRC = $(wildcard $(SRC_DIR)/*.c)
 # Fichiers objets
 OBJ = $(SRC:.c=.o)
 
-
 # Options compilateur
 CC = gcc
 CFLAGS = -Wall -Wextra -I$(INC_DIR)
@@ -29,8 +28,11 @@ $(NAME): $(OBJ)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJ) 
-fclean: 
+	rm -f $(OBJ)
+
+fclean: clean
 	rm -f $(NAME)
+
 re: fclean all
+
 .PHONY: all clean fclean re

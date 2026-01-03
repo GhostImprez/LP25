@@ -1,0 +1,17 @@
+# CAS 1: Machine locale uniquement
+./programme
+
+# CAS 2: Machine distante avec username séparé
+./programme --username enzo --remote-server 192.168.1.10 --port 22
+
+# CAS 3: Machine distante avec login
+./programme --login enzo@192.168.1.10 --port 22
+
+# CAS 4: Toutes les machines du fichier config
+./programme --all --remote-config src/.config.txt
+
+# Dry-run (test sans UI)
+./programme --dry-run
+
+# Aide
+./programme --help
