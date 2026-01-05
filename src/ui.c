@@ -79,7 +79,7 @@ void ui_draw(ui_ctx_t *c, machine_t *m, int n) {
     }
 
     // Pied de page 
-    mvprintw(c->h - 1, 1, "F2: Onglet Suivant | q: Quitter | Fleches: Naviguer");
+    mvprintw(c->h - 1, 1, "F2: Onglet Suivant |F5: Pause |F6: Arrêt |F7: Kill |F8: Reprise | q: Quitter | Fleches: Naviguer");
     refresh();
 }
 
