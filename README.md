@@ -1,3 +1,6 @@
+projet complet dans la branche fusion
+
+
 👤 Personne 1:  — Module process (gestion locale des processus)
 Responsabilités principales
 
