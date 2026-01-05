@@ -1,4 +1,4 @@
-projet complet dans la branche fusion
+projet complet dans la branche fusion man-proc-ui-net
 
 
 👤 Personne 1:  — Module process (gestion locale des processus)
