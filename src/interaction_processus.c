@@ -12,6 +12,7 @@ void aide_process() {
     printf("[INFO] Aide : Utilisez les flèches pour naviguer, F5-F8 pour agir sur les processus.\n");
 }
 
+/*
 // F4: Rechercher un processus par son PID
 process_t* recherche_process(process_t *list, int count, pid_t pid) {
     if (!list || count <= 0) {
@@ -25,6 +26,8 @@ process_t* recherche_process(process_t *list, int count, pid_t pid) {
     }
     return NULL;  // Processus non trouvé
 }
+*/
+
 
 // F5: Mettre en pause un processus (SIGSTOP)
 int pause_process(pid_t pid) {
